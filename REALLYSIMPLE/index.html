@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Chronological Feeds</title>
+</head>
+
+<body>
+  <h1>Chronological Feeds</h1>
+
+  <div id="feeds"></div>
+
+  <script>
+    // define the feeds to fetch
+    const feeds = [
+      "https://www.theguardian.com/world/rss",
+      "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+    ];
+
+    // define a function to fetch and display the feeds
+    async function displayFeeds() {
+      // fetch the feeds using the fetch API
+      const responses = await Promise.all(feeds.map(feed => fetch(feed)));
+      // convert the responses to XML documents using the DOMParser
+      const xmlDocs = await Promise.all(responses.map(response => response.text().then(str => new DOMParser().parseFromString(str, "text/xml"))));
+      // get the feed items from each XML document
+      const items = xmlDocs.flatMap(xmlDoc => Array.from(xmlDoc.querySelectorAll("item")));
+      // sort the items by date (oldest to newest)
+      items.sort((a, b) => new Date(a.querySelector("pubDate").textContent) - new Date(b.querySelector("pubDate").textContent));
+      // limit the items to the last 20 from each feed
+      const last20Items = {};
+      items.forEach(item => {
+        const source = item.querySelector("link").textContent;
+        if (!last20Items[source]) {
+          last20Items[source] = [];
+        }
+        if (last20Items[source].length < 20) {
+          last20Items[source].push(item);
+        }
+      });
+      // create a div for each feed item and add it to the feeds div
+      const feedsDiv = document.getElementById("feeds");
+      items.forEach(item => {
+        const source = item.querySelector("link").textContent;
+        const itemDiv = document.createElement("div");
+        const link = document.createElement("a");
+        link.href = item.querySelector("link").textContent;
+        link.target = "_blank";
+        link.innerText = item.querySelector("title").textContent;
+        itemDiv.appendChild(link);
+        const markAsReadButton = document.createElement("button");
+        markAsReadButton.innerText = "Mark as Read";
+        markAsReadButton.addEventListener("click", () => {
+          itemDiv.style.display = "none";
+        });
+        itemDiv.appendChild(markAsReadButton);
+        const shareButton = document.createElement("button");
+        shareButton.innerText = "Share";
+        shareButton.addEventListener("click", () => {
+          window.open(link.href, "_blank");
+        });
+        itemDiv.appendChild(shareButton);
+        if (last20Items[source].includes(item)) {
+          feedsDiv.prepend(itemDiv);
+        }
+      });
+    }
+
+    displayFeeds();
+  </script>
+</body>
+
+</html>
